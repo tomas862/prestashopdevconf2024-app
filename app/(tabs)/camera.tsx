@@ -1,10 +1,11 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraCapturedPicture, CameraView } from "expo-camera";
-import { useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Camera() {
+    const [ cameraPosition, setCameraPosition ] = useState<'back' | 'front'>('back')
     const [ photos, setPhotos ] = useState<CameraCapturedPicture[]>([])
     const [barcode, setBarcode] = useState<string | undefined>()
     const cameraRef = useRef<CameraView>(null)
@@ -14,17 +15,25 @@ export default function Camera() {
       setPhotos([])
     }
 
+    const rotateScreen = () => {
+      setCameraPosition(cameraPosition === 'back' ? 'front' : 'back')
+    }
+
     const takePicture = async () => {
-      if (cameraRef.current) {
-        const photo = await cameraRef.current.takePictureAsync();
-        if (photo) {
-          setPhotos([...photos, photo])
-        }
+      console.log(cameraRef)
+      if (!cameraRef.current) {
+        return
+      }
+
+      const photo = await cameraRef.current.takePictureAsync();
+      if (photo) {
+        console.info('Photo taken', photo)
+        setPhotos((prevPhotos) => [...prevPhotos, photo])
       }
     };
 
     return <View style={styles.container}>
-            <CameraView ref={cameraRef} facing="back" style={styles.camera} barcodeScannerSettings={{
+            <CameraView ref={cameraRef} facing={cameraPosition} style={styles.camera} barcodeScannerSettings={{
                 barcodeTypes: [
                     'aztec',
                     'ean13',
@@ -45,22 +54,26 @@ export default function Camera() {
                 setBarcode(result.data)
               }
             }} autofocus="on">
-                {barcode && <View style={styles.actions}>
+                <View style={styles.actions}>
                   <View style={styles.buttonsContainer}>
-                    <View style={{ display: 'flex', flexDirection: 'row', width: '40%' }}>
-                      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                          <Ionicons name="close" size={24} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', width: '60%' }}>
-                      <TouchableOpacity style={styles.button} onPress={takePicture}>
-                        <ThemedText />
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                        <Ionicons name="close" size={24} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.photoButton} onPress={takePicture}>
+                        <Ionicons name="camera" size={24} color="#007AFF" />
+                        {photos.length > 0 && (
+                          <View style={styles.badge}>
+                              <Text style={styles.badgeText}>{photos.length}</Text>
+                          </View>)
+                        }
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.rotateScreenButton} onPress={rotateScreen}>
+                        <Ionicons name="camera-reverse" size={24} color="orange" />
+                    </TouchableOpacity>
                   </View>
 
-                  <ThemedText style={{ fontWeight: 'bold' }}>{barcode}</ThemedText>
-                </View>}
+                  {barcode && <ThemedText style={{ fontWeight: 'bold' }}>{barcode}</ThemedText>}
+                </View>
             </CameraView>
         </View>
 }
@@ -73,7 +86,7 @@ const styles = StyleSheet.create({
       flex: 1,
       justifyContent: 'flex-end'
     },
-    button: {
+    photoButton: {
       width: 50,
       height: 50,
       borderRadius: 25,
@@ -83,14 +96,24 @@ const styles = StyleSheet.create({
       borderWidth: 2,
       borderColor: '#007AFF',
     },
+    rotateScreenButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: 'orange',
+    },
     actions: {
       padding: 10,
-      marginBottom: 10, 
+      marginBottom: 10,
       borderRadius: 8,
       alignContent: 'center',
       display: 'flex',
       justifyContent: 'center',
-      alignItems: 'center' // Horizontally align content
+      alignItems: 'center'
     },
     closeButton: {
       borderWidth: 2,
@@ -107,5 +130,20 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       width: '100%',
       justifyContent: 'space-between'
-    }
+    },
+    badge: {
+      position: 'absolute',
+      top: -5,
+      right: -5,
+      backgroundColor: 'red',
+      borderRadius: 10,
+      width: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    badgeText: {
+        color: 'white',
+        fontSize: 12,
+    },
   });
