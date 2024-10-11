@@ -1,7 +1,8 @@
 import { ThemedText } from "@/components/ThemedText";
+import { useCreateProduct } from "@/hooks/useCreateProduct";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraCapturedPicture, CameraView } from "expo-camera";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Camera() {
@@ -9,6 +10,8 @@ export default function Camera() {
     const [ photos, setPhotos ] = useState<CameraCapturedPicture[]>([])
     const [barcode, setBarcode] = useState<string | undefined>()
     const cameraRef = useRef<CameraView>(null)
+
+    const mutation = useCreateProduct()
 
     const onClose = () => {
       setBarcode(undefined)
@@ -27,7 +30,6 @@ export default function Camera() {
 
       const photo = await cameraRef.current.takePictureAsync();
       if (photo) {
-        console.info('Photo taken', photo)
         setPhotos((prevPhotos) => [...prevPhotos, photo])
       }
     };
@@ -56,23 +58,36 @@ export default function Camera() {
             }} autofocus="on">
                 <View style={styles.actions}>
                   <View style={styles.buttonsContainer}>
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={mutation.isPending}>
                         <Ionicons name="close" size={24} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.photoButton} onPress={takePicture}>
-                        <Ionicons name="camera" size={24} color="#007AFF" />
-                        {photos.length > 0 && (
-                          <View style={styles.badge}>
-                              <Text style={styles.badgeText}>{photos.length}</Text>
-                          </View>)
-                        }
-                    </TouchableOpacity>
+                    <View style={styles.actionButtonContainer}>
+                      <TouchableOpacity style={styles.photoButton} onPress={takePicture} disabled={barcode === undefined || mutation.isPending}>
+                          <Ionicons name="camera" size={24} color="#007AFF" />
+                          {photos.length > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{photos.length}</Text>
+                            </View>)
+                          }
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.sendButton} disabled={photos.length === 0  || mutation.isPending} onPress={() => {
+                        mutation.mutate({ barcode: barcode!, photos }, {
+                          onSuccess: ({ access_token }) => {
+                            Alert.alert("Product created", `Product created with access token: ${access_token}`)
+                          },
+                          onError: (error) => {
+                            Alert.alert("Error", error?.message ?? '')
+                          }
+                        })
+                      }}>
+                          <Ionicons name="send" size={24} color="green" />
+                      </TouchableOpacity>
+                    </View>
                     <TouchableOpacity style={styles.rotateScreenButton} onPress={rotateScreen}>
                         <Ionicons name="camera-reverse" size={24} color="orange" />
                     </TouchableOpacity>
                   </View>
-
-                  {barcode && <ThemedText style={{ fontWeight: 'bold' }}>{barcode}</ThemedText>}
+                  {barcode && <ThemedText style={{ fontWeight: 'bold', color: 'white' }}>{barcode}</ThemedText>}
                 </View>
             </CameraView>
         </View>
@@ -95,6 +110,16 @@ const styles = StyleSheet.create({
       backgroundColor: 'transparent',
       borderWidth: 2,
       borderColor: '#007AFF',
+    },
+    sendButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: 'green',
     },
     rotateScreenButton: {
       width: 50,
@@ -128,8 +153,15 @@ const styles = StyleSheet.create({
     buttonsContainer: {
       display: 'flex',
       flexDirection: 'row',
-      width: '100%',
+        width: '100%',
       justifyContent: 'space-between'
+    },
+    actionButtonContainer: {
+      display: 'flex',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 20,
+      alignItems: 'center'
     },
     badge: {
       position: 'absolute',
